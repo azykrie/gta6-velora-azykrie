@@ -3,17 +3,153 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<title>Velora City — an open-world crime game</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0e1a24;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff; }
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .hidden { display: none !important; }
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #topLeft { position: absolute; top: 14px; left: 16px; }
+  #money { font-size: 30px; font-weight: 800; color: #7dff9a; text-shadow: 0 2px 4px #000; letter-spacing: 1px; }
+  #healthWrap { margin-top: 6px; width: 190px; height: 14px; background: rgba(0,0,0,.55);
+    border: 1px solid rgba(255,255,255,.5); border-radius: 7px; overflow: hidden; }
+  #healthFill { height: 100%; width: 100%; background: linear-gradient(90deg,#37d67a,#a8e063); transition: width .2s; }
+  #healthFill.low { background: linear-gradient(90deg,#e8384f,#ff7a5c); }
+  #healthText { font-size: 12px; text-shadow: 0 1px 2px #000; margin-top: 2px; }
+  #ammo { font-size: 14px; font-weight: 700; text-shadow: 0 1px 2px #000; margin-top: 4px; color: #ffd23a; }
+  #topRight { position: absolute; top: 12px; right: 16px; text-align: right; }
+  #stars { font-size: 30px; letter-spacing: 3px; text-shadow: 0 2px 4px #000; }
+  #stars span { color: rgba(255,255,255,.25); }
+  #stars span.on { color: #ffd23a; }
+  #stars.hot span.on { color: #ff5340; animation: blink .5s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  #minimap { margin-top: 6px; border: 2px solid rgba(255,255,255,.65); border-radius: 6px;
+    background: rgba(10,20,30,.8); box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+  #objectiveBox { position: absolute; left: 16px; bottom: 16px; max-width: 430px;
+    background: rgba(0,0,0,.55); border-left: 4px solid #ffd23a; padding: 10px 14px; border-radius: 4px; }
+  #objectiveLabel { font-size: 11px; letter-spacing: 2px; color: #ffd23a; font-weight: 700; }
+  #objective { font-size: 16px; font-weight: 600; margin-top: 2px; }
+  #timer { font-size: 20px; font-weight: 800; color: #ff9a3a; margin-top: 4px; }
+  #speedBox { position: absolute; right: 16px; bottom: 16px; text-align: right; text-shadow: 0 2px 4px #000; }
+  #speed { font-size: 44px; font-weight: 800; line-height: 1; }
+  #speedBox small { font-size: 13px; letter-spacing: 2px; color: #cfe8ff; }
+  #banner { position: absolute; top: 22%; left: 50%; transform: translateX(-50%) scale(.96);
+    text-align: center; opacity: 0; transition: opacity .3s, transform .3s; }
+  #banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
+  #bannerTitle { font-size: 44px; font-weight: 900; letter-spacing: 2px; color: #ffd23a;
+    text-shadow: 0 3px 0 #7a2d12, 0 6px 14px #000; }
+  #bannerSub { font-size: 17px; max-width: 620px; margin: 8px auto 0; text-shadow: 0 2px 4px #000; }
+  #hint { position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.6); padding: 8px 18px; border-radius: 20px; font-size: 15px;
+    opacity: 0; transition: opacity .3s; white-space: nowrap; }
+  #hint.show { opacity: 1; }
+  #prompt { position: absolute; bottom: 170px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; font-weight: 700; text-shadow: 0 2px 4px #000; opacity: 0; }
+  #prompt.show { opacity: 1; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px;
+    margin: -11px 0 0 -11px; display: none; }
+  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff;
+    box-shadow: 0 0 3px #000; }
+  #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #crosshair::after { top: 10px; left: 0; width: 22px; height: 2px; }
+  #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 6;
+    box-shadow: inset 0 0 120px rgba(255,0,0,0); transition: box-shadow .15s; }
+  #vignette.hit { box-shadow: inset 0 0 120px rgba(255,0,0,.55); }
+  /* ---------- Screens ---------- */
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, rgba(10,30,50,.88), rgba(60,20,40,.82)); }
+  .panel { max-width: 640px; margin: 20px; padding: 34px 40px; text-align: center;
+    background: rgba(8,18,28,.72); border: 1px solid rgba(255,210,58,.5); border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+  .panel h1 { margin: 0; font-size: 58px; letter-spacing: 4px; color: #ffd23a;
+    text-shadow: 0 4px 0 #7a2d12, 0 8px 20px #000; }
+  .panel h2 { margin: 4px 0 0; font-size: 15px; letter-spacing: 5px; color: #7dd8ff; font-weight: 600; }
+  .panel p { font-size: 16px; line-height: 1.55; color: #e8f2ff; }
+  #controlsList { text-align: left; display: inline-block; font-size: 14px; line-height: 1.9; color: #cfe8ff; }
+  #controlsList b { color: #ffd23a; }
+  .btn { pointer-events: auto; cursor: pointer; display: inline-block; margin: 10px 6px 0; padding: 13px 30px;
+    font-size: 18px; font-weight: 800; letter-spacing: 1px; color: #1a1200; background: #ffd23a;
+    border: none; border-radius: 8px; box-shadow: 0 4px 0 #a87a00; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a87a00; }
+  .btn.ghost { background: transparent; color: #ffd23a; border: 2px solid #ffd23a; box-shadow: none; }
+  #helpPanel { position: fixed; right: 16px; top: 50%; transform: translateY(-50%); z-index: 9;
+    width: 260px; background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.4);
+    border-radius: 10px; padding: 14px 18px; font-size: 13px; line-height: 1.9; }
+  #helpPanel b { color: #ffd23a; }
 </style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
+<canvas id="game" aria-label="Velora City: an open-world crime game. Drive, steal cars, outrun the police and pay off your debt."></canvas>
 <p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud">
+  <div id="topLeft">
+    <div id="money">$250</div>
+    <div id="healthWrap"><div id="healthFill"></div></div>
+    <div id="healthText">100</div>
+    <div id="ammo">AMMO 12 / 12</div>
+  </div>
+  <div id="topRight">
+    <div id="stars" data-n="0"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+    <canvas id="minimap" width="180" height="180"></canvas>
+  </div>
+  <div id="objectiveBox">
+    <div id="objectiveLabel">OBJECTIVE</div>
+    <div id="objective">Press M to start: Job 1 — The Pickup</div>
+    <div id="timer"></div>
+  </div>
+  <div id="speedBox"><div id="speed">0</div><small>KM/H</small></div>
+  <div id="banner"><div id="bannerTitle"></div><div id="bannerSub"></div></div>
+  <div id="hint"></div>
+  <div id="prompt"></div>
+  <div id="crosshair"></div>
+</div>
+<div id="vignette"></div>
+
+<div id="helpPanel" class="hidden">
+  <b>VELORA CITY — controls</b><br>
+  <b>W A S D</b> move / drive<br><b>Mouse drag</b> look<br><b>Shift</b> sprint<br>
+  <b>Space</b> jump / handbrake<br><b>E</b> enter / exit car<br><b>Click</b> fire pistol<br>
+  <b>R</b> reload &nbsp; <b>M</b> mission<br><b>P / Esc</b> pause &nbsp; <b>H</b> help
+</div>
+
+<div id="startScreen" class="screen">
+  <div class="panel">
+    <h1>VELORA CITY</h1>
+    <h2>SUN &bull; SEA &bull; SPEED &bull; ONE BAD DEBT</h2>
+    <p id="storyText"></p>
+    <div id="controlsList"></div>
+    <div>
+      <button class="btn" id="playBtn">NEW GAME</button>
+      <button class="btn ghost" id="continueBtn">CONTINUE</button>
+      <button class="btn ghost" id="helpBtn">CONTROLS</button>
+    </div>
+  </div>
+</div>
+
+<div id="pauseScreen" class="screen hidden">
+  <div class="panel">
+    <h1 style="font-size:40px">PAUSED</h1>
+    <p>Your game is saved. Velora waits for no one — except right now.</p>
+    <button class="btn" id="resumeBtn">RESUME</button>
+    <button class="btn ghost" id="restartBtn">RESTART</button>
+  </div>
+</div>
+
+<div id="endScreen" class="screen hidden">
+  <div class="panel">
+    <h1 style="font-size:44px" id="endTitle">BUSTED</h1>
+    <p id="endText"></p>
+    <button class="btn" id="endBtn">BACK TO THE STREETS</button>
+  </div>
+</div>
+
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -1,61 +1,89 @@
-// Every tuning number and colour in one place. The playfield is a fixed 1280x720 logical area;
-// the renderer scales it to the window, so no rule below depends on the screen size.
-
-export const FIELD = { width: 1280, height: 720, groundY: 664 };
-
-/** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
-export const STEP = 1 / 60;
-
-export const PLAYER = {
-  width: 72,
-  height: 24,
-  speed: 560,
-  invulnerable: 1.5,
+// Velora City — shared constants and tuning.
+// A sun-soaked coastal city, original in every name, place and face.
+export const WORLD = {
+  half: 240,            // city extends -240..240 on x and z
+  roadEvery: 60,        // street spacing
+  roadWidth: 14,
+  roadHalf: 7,
+  block: 46,            // block size between roads
+  beachZ: 205,          // sand starts here (south edge)
+  waterZ: 238,          // ocean starts here
+  streets: [-180, -120, -60, 0, 60, 120, 180], // road centre lines, both axes
 };
 
-export const LIVES = 3;
-
-export const BLOCK = {
-  minWidth: 40,
-  maxWidth: 110,
-  height: 36,
-  speed: 240,
-  speedPerLevel: 30,
-  speedJitter: 90,
-  interval: 0.55,
-  intervalScale: 0.88,
-  minInterval: 0.14,
-  dodgePoints: 1,
+export const COLORS = {
+  sky: 0x8ec9e8,
+  fog: 0xa8d0e6,
+  sun: 0xfff2d0,
+  asphalt: 0x33363d,
+  asphaltLine: 0xd8d3a8,
+  sidewalk: 0xb9b3a4,
+  ground: 0x7d9b6a,
+  sand: 0xe8d29a,
+  water: 0x2e7fa8,
+  buildingGlass: 0x9fc4d8,
 };
 
-export const COIN = {
-  size: 24,
-  speed: 190,
-  speedPerLevel: 14,
-  interval: 1.4,
-  intervalJitter: 0.8,
-  points: 10,
+export const TUNE = {
+  walkSpeed: 6.5,
+  runSpeed: 10,
+  jumpSpeed: 7,
+  gravity: 22,
+  carAccel: 14,
+  carBrake: 26,
+  carReverse: 8,
+  carMaxSpeed: 30,
+  carMaxReverse: 10,
+  carSteer: 0.55,       // radians at standstill scale
+  carGrip: 0.92,        // lateral velocity kept per second (drift)
+  trafficSpeed: 9,
+  pedSpeed: 1.6,
+  pedFleeSpeed: 4.2,
+  pistolRange: 70,
+  pistolDamage: 34,
+  magSize: 12,
+  reloadTime: 1.1,
+  wantedDecaySec: 25,
+  policeTopSpeed: 17,
+  bustOnFootSec: 2.5,
+  bustInCarSec: 3.0,
+  healthRegen: 2.5,     // per second, out of combat
 };
 
-/** Seconds of play per level, and the last level: speeds and spawn rates stop growing there. */
-export const LEVEL = { seconds: 12, max: 12 };
-
-/** How many falling things can exist at once; the pool is allocated once, at boot. */
-export const POOL_SIZE = 64;
-
-export const PALETTE = {
-  backdrop: '#11141b',
-  sky: '#1b1f2a',
-  ground: '#2a3040',
-  player: '#4fc3f7',
-  block: '#e5534b',
-  coin: '#f2c94c',
-  panel: '#252b38',
-  text: '#eef1f5',
-  muted: '#8b93a3',
+export const STORY = {
+  title: 'VELORA CITY',
+  tagline: 'Sun, sea, and one very bad debt.',
+  intro:
+    'You are Rex Marlowe, a wheelman who owes $8,000 to Kessler, the man who owns half of Velora. ' +
+    'Four jobs stand between you and a clean slate. Steal a car, mind the cops, and get it done.',
+  controls: [
+    ['W A S D', 'Move / drive'],
+    ['Mouse drag', 'Look around'],
+    ['Shift', 'Sprint'],
+    ['Space', 'Jump'],
+    ['E', 'Enter / exit car'],
+    ['Click', 'Fire pistol'],
+    ['R', 'Reload'],
+    ['M', 'Start / retry mission'],
+    ['P / Esc', 'Pause'],
+    ['H', 'Toggle help'],
+  ],
 };
 
-export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+// Mulberry32 — small deterministic RNG so ?shot= scenes stage identically.
+export function createRng(seed) {
+  let a = seed >>> 0;
+  return function rng() {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
-/** Where the best score is kept between visits (this browser only). */
-export const BEST_KEY = 'block-dodger.best';
+export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+export function lerp(a, b, t) { return a + (b - a) * t; }
+export function dist2(ax, az, bx, bz) {
+  const dx = ax - bx, dz = az - bz;
+  return dx * dx + dz * dz;
+}
